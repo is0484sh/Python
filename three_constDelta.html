@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>Falling Ball on threejs</title>
+		<style>
+			canvas { width: 100%; height: 100% }
+		</style>
+	</head>
+	<body>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+		<!-- Code Written by Kohei Matsumura <matsumur@acm.org> -->
+
+		<script> //Start JavaScript from this line
+			//Difinition of the simulation free fall ball
+			//	Initial positition of the ball is 20m above
+			//	Grand floor is XZ-Plane 
+			//    X is righ in the screen, Y is up, Z is from screen to you
+			//	Diamiter of the ball is 1m
+			//	The ball fall down as gravity and no other force
+			// 	You need to edit simulation part only indicated later.		
+
+			//Difine physical parameter
+			const GROUND_THICKNESS = 1.0;	//Thickness of the floor
+			const BALL_RADIUS = 0.5; 		//Radius of the ball
+			const BALL_INITIAL_POSITION = {x:0.0, y:20.0, z:0.0}; //Initial position of the ball
+			var ball_velocity = {x:0.0, y:-1.0};　//Initial speed of the ball
+			const GRAVITY = -9.8;			//Grvity
+			var delta = 0.01;				//Delta t of simulation 0.01s
+			var count = 0;					//Counter of simulation 　
+			var RoE=0.8;					//Reflection coefficient of the floor
+
+			//3D envitonment setthing of ThreeJS
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 50 );	//Difeine camera's parameter
+			camera.position.y = 10;	//Position of the camera（Horizontal）
+			camera.position.z = 30;	//Position of the camera （Virtual）
+
+			//Rendering setting of ThreeJS
+			var renderer = new THREE.WebGLRenderer( { antialias: true } );
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setClearColor( 0x000000, 1 );
+			renderer.shadowMap.enabled = true; 
+			
+			//Define object in the ThreeJS virtual scene
+			document.body.appendChild( renderer.domElement );
+
+			//Define three lights
+			var lights = [];
+			lights[0] = new THREE.PointLight( 0xffffff, 1, 0 );
+			lights[1] = new THREE.PointLight( 0xffffff, 1, 0 );
+			lights[2] = new THREE.PointLight( 0xffffff, 1, 0 );
+
+			lights[0].position.set( 0, 200, 0 );
+			lights[1].position.set( 100, 200, 100 );
+			lights[2].position.set( - 100, - 200, - 100 );
+
+				//Define shadow rendering
+			lights[1].castShadow = true; 
+			lights[1].shadow.mapSize.width = 2048;
+			lights[1].shadow.mapSize.height = 2048;
+
+				//Add light objects in the virtual scene
+			scene.add(lights[0]);
+			scene.add(lights[1]);
+			scene.add(lights[2]);
+
+
+			// Difinition of the ball object
+				//Make sphere object
+			var ballGeometry = new THREE.SphereGeometry( BALL_RADIUS, 64, 64 );
+				//Make material of the object
+			var ballMaterial = new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } );
+				//Generate ball object
+			var ball = new THREE.Mesh( ballGeometry, ballMaterial );
+				//Define position of the ball only Y
+			ball.position.y = BALL_INITIAL_POSITION.y;
+				//Define shadow parameter
+			ball.castShadow = true;
+				//Add ball object in the virtual scene
+			scene.add(ball);
+			
+			// Difinition of the floor
+				//Make cubic object that is 20m x GROUND_THICKNESS m x 25 m
+			var cubeGeometry = new THREE.CubeGeometry(20, GROUND_THICKNESS, 25);
+				//Make material of the object
+			var cubeMaterial = new THREE.MeshLambertMaterial( { color: 0x666666 } )
+				//Generate ground object
+			var ground = new THREE.Mesh( cubeGeometry, cubeMaterial );
+				//Define position of the grand at the origine
+			ground.position.y = -1*GROUND_THICKNESS/2;
+				//Define shadow parameter
+			ground.receiveShadow = true;
+				//Add ground object in the virtual scene
+			scene.add(ground);
+			
+
+/******************************************************
+Modify the following simulation part only.
+Add some code to complete free fall and rebound on the floor.
+
+In ThreeJS, animate() is called contenioully to realize Simulation.
+In the simulation, count is update every time. 
+Physical micro period of one simuation cycle is defined in delta (<- 0.01 sec initally)
+The time laped from the stat simulation is calulated by count x delta (sec)
+********************************************************/
+
+			let animate = () =>  {
+
+				//1st stage of finit integration to obtain ball speed.
+				//In this dummy code, ball_velocity.y is constand, it is not free fall.
+				//Update the second line by "ball_velocity.y += GRAVITY * delta; for free fall" 
+				ball_velocity.x = 0.0;
+				ball_velocity.y += GRAVITY * delta;
+				
+				//2nd stage of finit integration to obtain ball position 
+				ball.position.x = ball.position.x;
+				ball.position.y += ball_velocity.y * delta;
+
+				//Rebound handring
+				//Evaluate ball postion on the ground.
+				if(ball.position.y < 0.5 ) {
+					//In this dummy code, stop the ball on the ground.
+					//Ideally, give rebound speed usind RoE and current spped.
+					ball_velocity.y = 0.0;
+				}
+				
+				//Output current lasped time and position on Javascript console
+				//Check how to display then console by yourself. 
+				if(ball_velocity.y**2 > 0.01 && ball.position.y > 0.6){
+					console.log((delta*count).toFixed(3) + ", " + ball.position.y.toFixed(4));
+				}
+
+				//Ipdate simulation counter
+				++count;
+				
+				//repeat animation()
+				var requestid=requestAnimationFrame(animate);
+			};
+
+/******************************************************
+	Simlation part is ended. Never use other part without your condidence.
+******************************************************/
+
+			const render = () => {
+				requestAnimationFrame( render );
+				renderer.render( scene, camera );
+			};
+
+			window.addEventListener( 'resize',  () => {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}, false );
+
+			requestAnimationFrame(animate);
+			render();
+						
+		</script>
+	</body>
+</html
